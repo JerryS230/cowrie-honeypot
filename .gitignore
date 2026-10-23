@@ -1,0 +1,10 @@
+backups/
+*.db
+*.bak*
+*.pem
+cowrie_key*
+.env
+*.json
+downloads/
+__pycache__/
+.DS_Store

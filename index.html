@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>COWRIE // Threat Monitor</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{color-scheme:dark;--bg:#070e1a;--panel:#101d30;--border:#25354b;--text:#e6f1ff;--muted:#9badc2;--cyan:#38bdf8;--red:#fb6958;--orange:#ffb454}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,sans-serif}header{padding:18px 24px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--border)}h1{font-size:22px;letter-spacing:1px;margin:0}h2{font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:#c9ddf2;margin:0 0 12px}.muted,.hint{color:var(--muted)}.live{color:#79f1bd}.layout{padding:18px 24px;display:grid;grid-template-columns:minmax(0,2fr) minmax(280px,1fr);gap:16px}.panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;min-width:0}.map-panel{padding:0;overflow:hidden}.map-head{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;gap:10px;flex-wrap:wrap}#map{height:470px;background:#0a1727}.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}.stat{padding:12px;background:#172940;border-radius:8px}.stat strong{font-size:26px;display:block;color:#eaf7ff}.stat span{font-size:11px;color:var(--muted)}#feed{height:380px;overflow:auto}.event{border-bottom:1px solid #273b51;padding:10px 0;font:12px/1.5 ui-monospace,monospace;overflow-wrap:anywhere}.event b{color:var(--orange)}.event time{color:var(--muted);display:block}.lower{padding:0 24px 24px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 10px;margin:9px 0}.row span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.row i{grid-column:1/-1;height:4px;background:var(--cyan);border-radius:4px}#hours{height:110px;display:flex;align-items:end;gap:2px}#hours div{flex:1;min-height:2px;background:var(--cyan)}.axis{display:flex;justify-content:space-between;color:var(--muted);font-size:11px}.tbl{overflow:auto}table{border-collapse:collapse;width:100%;font:12px ui-monospace,monospace}td,th{padding:8px;border-bottom:1px solid var(--border);text-align:left}th{color:var(--muted)}.empty{color:var(--muted)}.vm-pulse{width:16px;height:16px;border-radius:50%;background:#38bdf8;border:3px solid white;box-shadow:0 0 0 5px #38bdf855,0 0 24px #38bdf8;animation:pulse 2s infinite}@keyframes pulse{50%{box-shadow:0 0 0 13px #38bdf800,0 0 32px #38bdf8}}.leaflet-container{font:inherit}.leaflet-tooltip{background:#13263c;color:white;border:1px solid #39506a}.leaflet-tooltip:before{border-top-color:#39506a}button{background:#173753;color:#d8f4ff;border:1px solid #356485;border-radius:7px;padding:6px 10px;cursor:pointer}button:focus-visible{outline:2px solid white}@media(max-width:900px){.layout{grid-template-columns:1fr}.lower{grid-template-columns:1fr}#map{height:380px}}@media(max-width:500px){header,.layout{padding:12px}.lower{padding:0 12px 12px}.stats{gap:5px}.stat{padding:7px}.stat strong{font-size:20px}}
+</style>
+
+<style>
+#ip-investigation{margin:0 24px 24px}
+.ip-controls{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+#ip-search{flex:1;min-width:200px;background:#071423;color:#e6f1ff;
+ border:1px solid #39506a;border-radius:7px;padding:10px}
+#ip-table{width:100%}
+#ip-table button{color:#38bdf8;background:none;border:0;
+ cursor:pointer;text-align:left;padding:2px}
+#ip-table button:hover{text-decoration:underline}
+#ip-details{margin-top:16px;overflow-wrap:anywhere}
+#ip-details table{width:100%}
+#ip-details td{max-width:300px;overflow-wrap:anywhere}
+@media(max-width:500px){#ip-investigation{margin:0 12px 12px}}
+</style>
+
+</head>
+<body>
+<header><h1>COWRIE <span style="color:#38bdf8">//</span> THREAT MONITOR</h1><div><span class="live">● LIVE</span> <span class="muted" id="status">Connecting…</span></div></header>
+<div class="layout"><section class="panel map-panel"><div class="map-head"><h2 style="margin:0">Global attack activity</h2><div><button id="mode" type="button">Historical markers: ON</button> <span class="hint">Destination: Mexico Central</span></div></div><div id="map" role="img" aria-label="Map of approximate source IP locations and attack animations"></div></section><aside class="panel"><h2>Observed activity</h2><div class="stats"><div class="stat"><strong id="attempts">—</strong><span>LOGIN ATTEMPTS</span></div><div class="stat"><strong id="ips">—</strong><span>UNIQUE IPs</span></div><div class="stat"><strong id="cmdcount">—</strong><span>COMMANDS</span></div></div><h2>Live event feed</h2><div class="hint">New connections and logins appear here. No historical events are replayed as live.</div><div id="feed" aria-live="polite"></div></aside></div>
+
+<section class="panel" id="ip-investigation">
+<h2>IP Investigation</h2>
+<p class="hint">Search source IPs or countries and inspect recorded activity.</p>
+<div class="ip-controls">
+<input id="ip-search" placeholder="Search IP address or country..."
+ aria-label="Search IP addresses or countries">
+<button id="ip-refresh" type="button">Refresh</button>
+</div>
+<div class="tbl">
+<table id="ip-table"></table>
+</div>
+<div id="ip-details" aria-live="polite"></div>
+</section>
+
+<div class="lower"><section class="panel"><h2>Login attempts per hour (UTC)</h2><div id="hour-detail" style="color:#38bdf8;min-height:24px;margin-bottom:8px">Hover over a bar to see the exact hour and attempts</div><div id="hours"></div><div class="axis"><span id="h0"></span><span id="h1"></span></div></section><section class="panel"><h2>Countries of origin</h2><div id="countries"></div></section><section class="panel"><h2>Usernames tried</h2><div id="users"></div></section><section class="panel"><h2>Passwords tried</h2><div id="passwords"></div></section><section class="panel"><h2>Commands run after login</h2><div id="commands"></div></section><section class="panel"><h2>Attack tools (SSH fingerprint)</h2><div id="tools"></div></section><section class="panel" style="grid-column:1/-1"><h2>Latest login attempts</h2><div class="tbl"><table id="recent"></table></div></section></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const VM=[20.59,-100.39];
+const map=L.map('map',{worldCopyJump:true,minZoom:1}).setView([25,-50],2);
+const history = L.layerGroup().addTo(map);
+const flights = L.layerGroup().addTo(map);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 19
+}).addTo(map);
+L.marker(VM,{icon:L.divIcon({className:'',html:'<div class="vm-pulse"></div>',iconSize:[16,16],iconAnchor:[8,8]})}).addTo(map).bindTooltip('Azure VM — Mexico Central (approximate)');
+let showHistory=true;
+$('mode').onclick=()=>{showHistory=!showHistory;if(showHistory)history.addTo(map);else map.removeLayer(history);$('mode').textContent='Historical markers: '+(showHistory?'ON':'OFF')};
+const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text!=null)e.textContent=String(text);if(cls)e.className=cls;return e};
+function bars(id,rows,label){const box=$(id);box.replaceChildren();if(!rows?.length){box.append(el('div','No data yet','empty'));return}const max=Math.max(1,...rows.map(r=>r.n));rows.forEach(r=>{const line=el('div',null,'row');line.append(el('span',label?label(r):r.k??'Unknown'),el('span',Number(r.n).toLocaleString()));const b=el('i');b.style.width=Math.max(2,r.n/max*100)+'%';line.append(b);box.append(line)})}
+async function summary(){try{const r=await fetch('/api/summary',{cache:'no-store'});if(!r.ok)throw Error(r.status);const d=await r.json();$('attempts').textContent=d.totals.attempts.toLocaleString();$('ips').textContent=d.totals.ips.toLocaleString();$('cmdcount').textContent=d.totals.commands.toLocaleString();history.clearLayers();(d.map||[]).forEach(p=>{if(!Number.isFinite(p.lat)||!Number.isFinite(p.lon))return;L.circleMarker([p.lat,p.lon],{radius:3+Math.min(9,Math.sqrt(p.n)*1.1),color:'#f59e66',weight:1,fillColor:'#fb6958',fillOpacity:.5}).bindTooltip(`${p.ip} (${p.country||'unknown'}): ${p.n} attempts`).addTo(history)});const h=$('hours');h.replaceChildren();const max=Math.max(1,...d.hourly.map(x=>x.n));d.hourly.forEach(x=>{const b=el('div');b.style.height=(x.n/max*100)+'%';b.title=x.k+':00 UTC — '+x.n+' attempts';
+b.style.cursor='crosshair';
+b.style.transition='background 0.15s, opacity 0.15s';
+b.addEventListener('mouseenter',()=>{
+  b.style.background='#fb6958';
+  b.style.opacity='1';
+  $('hour-detail').textContent=
+    x.k+':00–'+x.k.split(' ').pop()+':59 UTC | '+x.n+' login attempts';
+});
+b.addEventListener('mouseleave',()=>{
+  b.style.background='';
+  b.style.opacity='';
+});h.append(b)});$('h0').textContent=d.hourly[0]?.k||'';$('h1').textContent=d.hourly.at(-1)?.k||'';bars('countries',d.countries);bars('users',d.users);bars('passwords',d.passwords);bars('commands',d.commands);bars('tools',d.tools,x=>`${String(x.k).slice(0,14)}… (${x.ips} IPs)`);const tb=$('recent');tb.replaceChildren();const head=el('tr');['Time (UTC)','Address','Country','Username','Password'].forEach(x=>head.append(el('th',x)));tb.append(head);(d.recent||[]).forEach(x=>{const tr=el('tr');[x.ts?.slice(0,19).replace('T',' '),x.ip,x.country||'unknown',x.username,x.password].forEach(v=>tr.append(el('td',v??'')));tb.append(tr)})}catch(e){$('status').textContent='Summary unavailable'}}
+function arcPoints(start,end){const a=L.latLng(start),b=L.latLng(end);let diff=b.lng-a.lng;if(diff>180)diff-=360;if(diff< -180)diff+=360;const midLat=(a.lat+b.lat)/2;const lift=Math.min(28,Math.abs(diff)*.12+Math.abs(b.lat-a.lat)*.12+4);const coords=[];for(let i=0;i<=48;i++){const t=i/48;coords.push([a.lat+(b.lat-a.lat)*t+Math.sin(Math.PI*t)*lift,b.lng-diff*(1-t)])}return coords}
+function animateAttack(e){if(!Number.isFinite(e.lat)||!Number.isFinite(e.lon))return;const color=e.eventid==='cowrie.login.failed'?'#ffb454':'#fb6958';const path=arcPoints([e.lat,e.lon],VM);const line=L.polyline([],{color,weight:2,opacity:.9,interactive:false}).addTo(flights);const source=L.circleMarker([e.lat,e.lon],{radius:5,color,fillColor:color,fillOpacity:.8,interactive:false}).addTo(flights);let frame=0;const frames=36;const timer=setInterval(()=>{frame++;line.setLatLngs(path.slice(0,Math.ceil(frame/frames*(path.length-1))+1));if(frame>=frames){clearInterval(timer);const hit=L.circleMarker(VM,{radius:8,color,fillOpacity:.1,interactive:false}).addTo(flights);setTimeout(()=>{flights.removeLayer(hit);flights.removeLayer(line);flights.removeLayer(source)},13600)}},40)}
+function addFeed(e){const box=$('feed'),item=el('div',null,'event');const time=el('time',e.ts?.replace('T',' ').slice(0,19)+' UTC');const type=el('b',e.eventid?.replace('cowrie.','')||'event');item.append(time,type,el('span',`  ${e.ip||'unknown IP'} · ${e.country||'unlocated'}${e.username?' · user: '+e.username:''}`));box.prepend(item);while(box.children.length>80)box.lastChild.remove()}
+let cursor=null,loading=false;
+async function pollLive(){if(loading)return;loading=true;try{if(cursor===null){const r=await fetch('/api/live?after=0',{cache:'no-store'});if(!r.ok)throw Error(r.status);const d=await r.json();cursor=d.latest;$('status').textContent='Watching for new events · 5s';return}let pages=0;while(pages++<5){const r=await fetch('/api/live?after='+encodeURIComponent(cursor),{cache:'no-store'});if(!r.ok)throw Error(r.status);const d=await r.json();const events=d.events||[];for(const e of events){addFeed(e);animateAttack(e);cursor=Math.max(cursor,e.id)}if(events.length<100){cursor=Math.max(cursor,d.latest);break}if(pages===5)$('status').textContent='Busy: event backlog';}if(pages<=5)$('status').textContent='Watching for new events · 5s'}catch(e){$('status').textContent='Live feed disconnected'}finally{loading=false}}
+summary();pollLive();setInterval(summary,15000);setInterval(pollLive,5000);
+</script>
+
+<script>
+(function(){
+const table=document.getElementById('ip-table');
+const details=document.getElementById('ip-details');
+const search=document.getElementById('ip-search');
+const refresh=document.getElementById('ip-refresh');
+
+function node(tag,value){
+ const e=document.createElement(tag);
+ if(value!==undefined)e.textContent=String(value);
+ return e;
+}
+function heading(parent,labels){
+ const tr=node('tr');
+ labels.forEach(x=>tr.appendChild(node('th',x)));
+ parent.appendChild(tr);
+}
+function row(parent,values){
+ const tr=node('tr');
+ values.forEach(x=>tr.appendChild(node('td',x??'')));
+ parent.appendChild(tr);
+}
+
+async function loadIPs(){
+ table.replaceChildren();
+ row(table,['Loading IP addresses...']);
+ try{
+  const r=await fetch('/api/ips?limit=100&search='+
+    encodeURIComponent(search.value),{cache:'no-store'});
+  if(!r.ok)throw Error('HTTP '+r.status);
+  const d=await r.json();
+  table.replaceChildren();
+  heading(table,['Source IP','Country','Logins','Events','Last Seen']);
+  if(!d.ips.length){
+   row(table,['No matching IP addresses']);
+   return;
+  }
+  d.ips.forEach(x=>{
+   const tr=node('tr');
+   const td=node('td');
+   const b=node('button',x.ip);
+   b.type='button';
+   b.addEventListener('click',()=>inspect(x.ip));
+   td.appendChild(b);
+   tr.appendChild(td);
+   [x.country,x.attempts,x.events,x.last_seen].forEach(v=>
+     tr.appendChild(node('td',v??'')));
+   table.appendChild(tr);
+  });
+ }catch(e){
+  table.replaceChildren();
+  row(table,['Unable to load IPs: '+e.message]);
+ }
+}
+
+async function inspect(ip){
+ details.replaceChildren();
+ details.appendChild(node('p','Loading '+ip+'...'));
+ try{
+  const r=await fetch('/api/ip/'+encodeURIComponent(ip),
+    {cache:'no-store'});
+  if(!r.ok)throw Error('HTTP '+r.status);
+  const d=await r.json();
+  details.replaceChildren();
+  details.appendChild(node('h2','Investigation: '+d.ip));
+  details.appendChild(node('p','Country: '+
+    (d.geo?.country||'Unknown')+
+    ' | Showing '+d.events.length+' latest stored events'));
+
+  const wrap=node('div');
+  wrap.className='tbl';
+  const t=node('table');
+  heading(t,['Time (UTC)','Session','Event','Username',
+             'Password','Command','SSH fingerprint']);
+  d.events.forEach(e=>row(t,[
+   e.ts,e.session,e.eventid,e.username,e.password,
+   e.input,e.hassh
+  ]));
+  wrap.appendChild(t);
+  details.appendChild(wrap);
+ }catch(e){
+  details.replaceChildren();
+  details.appendChild(node('p','Investigation failed: '+e.message));
+ }
+}
+
+let timer;
+search.addEventListener('input',()=>{
+ clearTimeout(timer);
+ timer=setTimeout(loadIPs,300);
+});
+refresh.addEventListener('click',loadIPs);
+loadIPs();
+})();
+</script>
+
+</body></html>
